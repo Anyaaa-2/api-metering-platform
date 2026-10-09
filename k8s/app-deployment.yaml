@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rate-limiter-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rate-limiter-app
+  template:
+    metadata:
+      labels:
+        app: rate-limiter-app
+    spec:
+      containers:
+        - name: rate-limiter-app
+          image: rate-limiter-service:latest
+          imagePullPolicy: Never # use the image built directly into minikube's Docker, don't fetch from a registry
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATA_REDIS_HOST
+              value: redis-service
+            # Admin API key comes from a Kubernetes Secret, never from the manifest.
+            # Create it once with:
+            #   kubectl create secret generic metering-admin --from-literal=admin-key=<your-key>
+            # If the Secret is missing, the app still starts but /admin/** stays disabled.
+            - name: ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: metering-admin
+                  key: admin-key
+                  optional: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
